@@ -1,5 +1,5 @@
 import binascii
-from struct import unpack_from
+from struct import unpack, unpack_from
 
 from .tags import *
 
@@ -29,7 +29,6 @@ class ExifJPEG:
     _tags = {}
     debug = True
     _pointer = 2
-    _ptr = 0
 
     def __init__(self, f):
         self._file = f
@@ -51,7 +50,8 @@ class ExifJPEG:
             # While not Exif section, jump to next section
             Tools.debug( self.debug, Tools.decode( marker[0:2] ) )
             # Read block length
-            length = Tools.bytes_to_int( marker[2:4] )
+            #length = Tools.bytes_to_int( marker[2:4] )
+            length = unpack('>H', marker[2:4])[0]
             Tools.debug( self.debug, length )
 
             # Move to section end
@@ -62,13 +62,11 @@ class ExifJPEG:
             marker = f.read(10)
 
         # Get Exif section length
-        length = Tools.bytes_to_int( marker[2:4] )
-        Tools.debug( self.debug, 'Exif length'.ljust(20, ' ') + ': ' + str(length) )
-        #length = Tools.dataread('h', marker[2:4])[0]
-        #Tools.debug( self.debug, 'Exif length'.ljust(20, ' ') + ': ' + str(length) )
+        #length = Tools.bytes_to_int( marker[2:4] )
+        length = unpack('>H', marker[2:4])[0]
         # Get endian-ness
         self._endian = Tools.decode( f.read(2) )
-        Tools.debug(self.debug, 'Endian : ' + str(self._endian) )
+        f.seek(f.tell() - 4)
 
         # Save start of IFD
         self._ifdstart = self._pointer
@@ -85,71 +83,73 @@ class ExifJPEG:
 
         self.nextifd(f)
 
-    def nextifd(self, f):
+        # Display tags
         Tools.debug(self.debug, '===========================')
-        Tools.debug(self.debug, '= IFD')
+        Tools.debug(self.debug, '= Tags')
         Tools.debug(self.debug, '===========================')
+        for key, val in self._tags.items():
+            tagdefault = ('Tag {}'.format(key),)
+            Tools.debug(self.debug, EXIF_TAGS.get(key, tagdefault)[0].ljust(25, ' ') + ' : ' + str( val ) )
 
-        print('IFD @ : ' + str(self._pointer))
+    def nextifd(self, f):
+        """
+        Read the next IFD at the current pointer position
+        """
+
         f.seek(self._pointer)
-        
-        #dirlen = Tools.dataread('I', f.read(4), self._endian)[0]
         entries = Tools.dataread('h', f.read(2), self._endian)[0]
-        #pointer_stop = self._pointer + dirlen
         self._pointer += 2
 
-        #Tools.debug(self.debug, 'Directory start : ' + str(dirlen))
-        #Tools.debug(self.debug, 'Directory size : ' + str(dirlen))
-        Tools.debug(self.debug, 'Entries count : ' + str(entries))
-        #Tools.debug(self.debug, 'Directory stop : ' + str(pointer_stop))
-
-        #while self._pointer < pointer_stop:
         for i in range(entries):
-            self.readtag(f)
+            self.readtag(f, i+1)
 
         if 0x8769 in self._tags.keys():
-            self._pointer = self._tags[0x8769]
-            print('Next IFD @ : ' + str(self._pointer))
+            self._pointer = self._ifdstart + self._tags[0x8769]
+            del self._tags[0x8769]
             f.seek(self._pointer)
             self.nextifd(f)
 
 
-    def readtag(self, f):
+    def readtag(self, f, i):
         tagid = Tools.dataread('H', f.read(2), self._endian)[0]
         tagdefault = ('Tag {}'.format(tagid),)
         tagformat = Tools.dataread('h', f.read(2), self._endian)[0]
         taglen = Tools.dataread('I', f.read(4), self._endian)[0]
-        tagoffset = Tools.dataread('I', f.read(4), self._endian)[0]
 
-        Tools.debug(self.debug, '---------------------------')
-        Tools.debug(self.debug, '- Tag')
-        Tools.debug(self.debug, '---------------------------')
-        Tools.debug(self.debug, 'Tag id : ' + EXIF_TAGS.get(tagid, tagdefault)[0] )
-        Tools.debug(self.debug, 'Tag format : ' + str( tagformat) )
-        Tools.debug(self.debug, 'Tag length : ' + str( taglen ) )
-        Tools.debug(self.debug, 'Tag offset : ' + str( tagoffset ) )
+        if taglen * FIELD_TYPES[tagformat][0] > 4:
+            tagoffset = Tools.dataread('I', f.read(4), self._endian)[0]
+            f.seek(self._ifdstart + tagoffset)
+                    
+        #if EXIF_TAGS.get(tagid, tagdefault)[0] == 'NOrientation':
+        if not 1:
+            Tools.debug(self.debug, '---------------------------')
+            Tools.debug(self.debug, '- Tag ' + str(i))
+            Tools.debug(self.debug, '---------------------------')
+            Tools.debug(self.debug, 'Tag id : ' + EXIF_TAGS.get(tagid, tagdefault)[0] )
+            Tools.debug(self.debug, 'Tag format : ' + str( tagformat ) )
+            Tools.debug(self.debug, 'Tag length : ' + str( taglen ) )
+        #if EXIF_TAGS.get(tagid, tagdefault)[0] == 'NOrientation':
+        if EXIF_TAGS.get(tagid, tagdefault)[0] == 'NOrientation':
+            Tools.debug(self.debug, '---------------------------')
 
-        f.seek(self._ifdstart + tagoffset)
-        typelen = FIELD_TYPES[tagformat][0]
-        ##print('Type length : ' + str(typelen * taglen))
         tagdata = self.readtagvalue(f, tagformat, taglen )
-        Tools.debug(self.debug, EXIF_TAGS.get(tagid, tagdefault)[0].ljust(20, ' ') + ' : ' + str( tagdata ) )
         self._tags[tagid] = tagdata
-        ##print('Tag value : ' + str(tagdata))
-        #tagdata = Tools.dataread('c*', tagdata, self._endian)
-        #print(tagdata)
-        #tagdata = f.read( Tools.dataread('I', taglen, self._endian)[0] )
-        #Tools.debug(self.debug, 'Tag data : ' + str( tagdata ) )
-        #Tools.debug(self.debug, 'Tag data : ' + str( Tools.dataread('b*', taglen, self._endian)[0] ) )
 
         self._pointer += 12
         f.seek(self._pointer)
 
-    def readtagvalue(self, f, format, len):
+    def readtagvalue(self, f, format, length):
         if format == 2:
+            # Read string value
             return self.readascii(f)
+        elif format in (5, 10):
+            # Read ratio value
+            return '%d/%d' % (
+                    Tools.dataread(FIELD_TYPES[format][3], f.read(4), self._endian)[0],
+                    Tools.dataread(FIELD_TYPES[format][3], f.read(4), self._endian)[0]
+                )
         else:
-            return Tools.dataread(FIELD_TYPES[format][3], f.read( len * FIELD_TYPES[format][0] ), self._endian)[0]
+            return Tools.dataread(FIELD_TYPES[format][3], f.read( length * FIELD_TYPES[format][0] ), self._endian)[0]
 
     def readascii(self, f):
         """ Read ascii string until null character """
@@ -160,7 +160,6 @@ class ExifJPEG:
             c = f.read(1)
 
         return value
-
 
 
 class Tools:
@@ -188,22 +187,6 @@ class Tools:
         """ Decode byte array to human readable string """
         hex_string = binascii.hexlify( bytearray(bytestring) )
         return binascii.unhexlify( hex_string )
-
-    def ByteToHex( byteStr ):
-        """
-        Convert a byte string to it's hex string representation e.g. for output.
-        """
-        
-        # Uses list comprehension which is a fractionally faster implementation than
-        # the alternative, more readable, implementation below
-        #   
-        #    hex = []
-        #    for aChar in byteStr:
-        #        hex.append( "%02X " % ord( aChar ) )
-        #
-        #    return ''.join( hex ).strip()        
-
-        return ''.join( [ "%02X " % ord( x ) for x in byteStr ] ).strip()
 
     @classmethod
     def debug(self, debug, message):

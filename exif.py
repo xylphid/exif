@@ -32,5 +32,5 @@ class Exif:
             print('Exif not available')
 
 if __name__ == '__main__':
-    Exif('C:\\Users\\Anthony\\Pictures\\De Xylphid WPhone\\Pellicule\\2013.05.09 - Ardennes - Lille - Bruges\\IMG_20130510_183306.jpg')
-    #Exif('C:\\Users\\Anthony\\Pictures\\De Xylphid WPhone\\Pellicule\\WP_20150706_004.jpg')
+    #Exif('C:\\Users\\Anthony\\Pictures\\De Xylphid WPhone\\Pellicule\\2013.05.09 - Ardennes - Lille - Bruges\\IMG_20130510_183306.jpg')
+    Exif('C:\\Users\\Anthony\\Pictures\\De Xylphid WPhone\\Pellicule\\WP_20150706_004.jpg')
