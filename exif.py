@@ -13,17 +13,17 @@ class Exif:
 
         Tools.debug( self.debug, filename )
         f = open(str(filename), 'rb')
-        self.type = self.file_type(f)
+        self.type = self.get_file_type(f)
         f.close()
 
-    def file_type(self, f):
+    def get_file_type(self, f):
         """
         Return file type in [TIFF, JPEG]
         """
         soi = f.read(4)
         if soi[0:4] == [b'II*\x00', b'MM\x00*']:
             # TIFF Image file
-            return self.type['TIFF']
+            return self._types['TIFF']
         elif soi[0:2] == b'\xFF\xD8':
             # JPEG Image file
             ExifJPEG(f)
