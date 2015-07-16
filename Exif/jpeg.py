@@ -1,7 +1,5 @@
-import binascii
-from struct import unpack, unpack_from
-
 from .tags import *
+from .utils import *
 
 """
 Exif Data Structure [Bytes]:
@@ -32,7 +30,7 @@ class ExifJPEG:
 
     def __init__(self, f):
         self._file = f
-        Tools.debug(self.debug, 'JPEG Exif Extraction')
+        debug(self.debug, 'JPEG Exif Extraction')
 
         # Set pointer to the third bit since the two first ones have already been read
         f.seek(self._pointer)
@@ -48,11 +46,10 @@ class ExifJPEG:
         self._pointer += 10
         while marker[0] == 0xFF and marker[4:8] != b'Exif':
             # While not Exif section, jump to next section
-            Tools.debug( self.debug, Tools.decode( marker[0:2] ) )
+            debug( self.debug, decode( marker[0:2] ) )
             # Read block length
-            #length = Tools.bytes_to_int( marker[2:4] )
-            length = unpack('>H', marker[2:4])[0]
-            Tools.debug( self.debug, length )
+            length = unpack_datas('>H', marker[2:4])[0]
+            debug( self.debug, length )
 
             # Move to section end
             # 6 is Section declaration + Section length
@@ -62,10 +59,9 @@ class ExifJPEG:
             marker = f.read(10)
 
         # Get Exif section length
-        #length = Tools.bytes_to_int( marker[2:4] )
-        length = unpack('>H', marker[2:4])[0]
+        length = unpack_datas('>H', marker[2:4])[0]
         # Get endian-ness
-        self._endian = Tools.decode( f.read(2) )
+        self._endian = decode( f.read(2) )
         f.seek(f.tell() - 4)
 
         # Save start of IFD
@@ -75,7 +71,7 @@ class ExifJPEG:
         self._pointer += 4
         f.seek(self._pointer)
         
-        ifdoffset = Tools.dataread('I', f.read(4), self._endian)[0]
+        ifdoffset = unpack_datas('I', f.read(4), self._endian)[0]
         self._pointer += 4
         if ifdoffset != 8:
             # 0th IFD is not right next to TIFF header
@@ -84,12 +80,12 @@ class ExifJPEG:
         self.nextifd(f)
 
         # Display tags
-        Tools.debug(self.debug, '===========================')
-        Tools.debug(self.debug, '= Tags')
-        Tools.debug(self.debug, '===========================')
+        debug(self.debug, '===========================')
+        debug(self.debug, '= Tags')
+        debug(self.debug, '===========================')
         for key, val in self._tags.items():
             tagdefault = ('Tag {}'.format(key),)
-            Tools.debug(self.debug, EXIF_TAGS.get(key, tagdefault)[0].ljust(25, ' ') + ' : ' + str( val ) )
+            debug(self.debug, EXIF_TAGS.get(key, tagdefault)[0].ljust(25, ' ') + ' : ' + str( val ) )
 
     def nextifd(self, f):
         """
@@ -97,7 +93,7 @@ class ExifJPEG:
         """
 
         f.seek(self._pointer)
-        entries = Tools.dataread('h', f.read(2), self._endian)[0]
+        entries = unpack_datas('h', f.read(2), self._endian)[0]
         self._pointer += 2
 
         for i in range(entries):
@@ -111,26 +107,26 @@ class ExifJPEG:
 
 
     def readtag(self, f, i):
-        tagid = Tools.dataread('H', f.read(2), self._endian)[0]
+        tagid = unpack_datas('H', f.read(2), self._endian)[0]
         tagdefault = ('Tag {}'.format(tagid),)
-        tagformat = Tools.dataread('h', f.read(2), self._endian)[0]
-        taglen = Tools.dataread('I', f.read(4), self._endian)[0]
+        tagformat = unpack_datas('h', f.read(2), self._endian)[0]
+        taglen = unpack_datas('I', f.read(4), self._endian)[0]
 
         if taglen * FIELD_TYPES[tagformat][0] > 4:
-            tagoffset = Tools.dataread('I', f.read(4), self._endian)[0]
+            tagoffset = unpack_datas('I', f.read(4), self._endian)[0]
             f.seek(self._ifdstart + tagoffset)
                     
         #if EXIF_TAGS.get(tagid, tagdefault)[0] == 'NOrientation':
         if not 1:
-            Tools.debug(self.debug, '---------------------------')
-            Tools.debug(self.debug, '- Tag ' + str(i))
-            Tools.debug(self.debug, '---------------------------')
-            Tools.debug(self.debug, 'Tag id : ' + EXIF_TAGS.get(tagid, tagdefault)[0] )
-            Tools.debug(self.debug, 'Tag format : ' + str( tagformat ) )
-            Tools.debug(self.debug, 'Tag length : ' + str( taglen ) )
+            debug(self.debug, '---------------------------')
+            debug(self.debug, '- Tag ' + str(i))
+            debug(self.debug, '---------------------------')
+            debug(self.debug, 'Tag id : ' + EXIF_TAGS.get(tagid, tagdefault)[0] )
+            debug(self.debug, 'Tag format : ' + str( tagformat ) )
+            debug(self.debug, 'Tag length : ' + str( taglen ) )
         #if EXIF_TAGS.get(tagid, tagdefault)[0] == 'NOrientation':
         if EXIF_TAGS.get(tagid, tagdefault)[0] == 'NOrientation':
-            Tools.debug(self.debug, '---------------------------')
+            debug(self.debug, '---------------------------')
 
         tagdata = self.readtagvalue(f, tagformat, taglen )
         self._tags[tagid] = tagdata
@@ -144,52 +140,19 @@ class ExifJPEG:
             return self.readascii(f)
         elif format in (5, 10):
             # Read ratio value
-            return '%d/%d' % (
-                    Tools.dataread(FIELD_TYPES[format][3], f.read(4), self._endian)[0],
-                    Tools.dataread(FIELD_TYPES[format][3], f.read(4), self._endian)[0]
+            return Ratio(
+                    unpack_datas(FIELD_TYPES[format][3], f.read(4), self._endian)[0],
+                    unpack_datas(FIELD_TYPES[format][3], f.read(4), self._endian)[0]
                 )
         else:
-            return Tools.dataread(FIELD_TYPES[format][3], f.read( length * FIELD_TYPES[format][0] ), self._endian)[0]
+            return unpack_datas(FIELD_TYPES[format][3], f.read( length * FIELD_TYPES[format][0] ), self._endian)[0]
 
     def readascii(self, f):
         """ Read ascii string until null character """
         value = ''
         c = f.read(1)
         while c != b'\x00':
-            value += Tools.dataread('c', c, self._endian)[0].decode('utf-8')
+            value += unpack_datas('c', c, self._endian)[0].decode('utf-8')
             c = f.read(1)
 
         return value
-
-
-class Tools:
-
-    @classmethod
-    def dataread(self, format, data, endian=None):
-        if endian == b'II':
-            format = '<' + format
-        elif endian == b'MM':
-            format = '>' + format
-
-        return unpack_from(format, data)
-
-    @classmethod
-    def bytes_to_hex(self, bytestring):
-        return binascii.hexlify( bytearray(bytestring) )
-
-    @classmethod
-    def bytes_to_int(self, bytestring):
-        hexstring = binascii.hexlify( bytearray(bytestring) )
-        return int(hexstring, 16)
-
-    @classmethod
-    def decode(self, bytestring):
-        """ Decode byte array to human readable string """
-        hex_string = binascii.hexlify( bytearray(bytestring) )
-        return binascii.unhexlify( hex_string )
-
-    @classmethod
-    def debug(self, debug, message):
-        """ Print short debug message """
-        if debug == True:
-            print( message )
