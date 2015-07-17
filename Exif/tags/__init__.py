@@ -1,16 +1,30 @@
 from .exif import *
+from .types import *
+from Exif.exception import *
 
-# field type descriptions as (length, abbreviation, full name, unpack format) tuples
-FIELD_TYPES = (
-    (0, 'X', 'Proprietary'),  # no such type
-    (1, 'B', 'Byte', 'I'),
-    (1, 'A', 'ASCII', 'c'),
-    (2, 'S', 'Short', 'H'),
-    (4, 'L', 'Long', 'L'),
-    (8, 'R', 'Ratio', 'L'),
-    (1, 'SB', 'Signed Byte', 'i'),
-    (1, 'U', 'Undefined', 'c'),
-    (2, 'SS', 'Signed Short', 'h'),
-    (4, 'SL', 'Signed Long', 'l'),
-    (8, 'SR', 'Signed Ratio', 'L'),
-)
+import logging
+
+class Tag:
+    """
+    Tag objet containing all informations usefull for display and writting
+    """
+
+    def __init__(self, name, value, etype):
+        try:
+            if not FIELD_TYPES[etype]:
+                raise ExifTagTypeError( etype )
+
+            self._name = name
+            self.value = value
+            self.type = etype
+        except ExifTagTypeError as e:
+            logging.info( e )
+
+    def len(self):
+        if self.type == 2:
+            return len(self.value) + 1
+        else:
+            return len(self.value)
+
+    def __str__(self):
+        return repr(self.value)

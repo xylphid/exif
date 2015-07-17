@@ -2,6 +2,8 @@ from Exif.exception import *
 from Exif.jpeg import ExifJPEG
 from Exif.utils import *
 from Exif.tags import exif
+
+import logging
 import sys
 
 class Exif:
@@ -15,8 +17,8 @@ class Exif:
         """
         Register filename and process if available
         """
-
-        ExifTools.debug( self.debug, filename )
+        logging.basicConfig(format='[%(asctime)s][%(levelname)s] : %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.DEBUG)
+        logging.info( filename )
         self._filename = filename
         if autoprocess:
             self.process_file()
@@ -44,9 +46,9 @@ class Exif:
                 ExifJPEG(f)
                 return self._types['JPEG']
             else:
-                print('Exif not available')
-        except ExifTypeNotAvailable as e:
-            sys.stderr.write( e.parameter )
+                raise ExifTypeError( 'Exif not available' )
+        except ExifTypeError as e:
+            logging.info( e.parameter )
 
 if __name__ == '__main__':
     #Exif('C:\\Users\\Anthony\\Pictures\\De Xylphid WPhone\\Pellicule\\2013.05.09 - Ardennes - Lille - Bruges\\IMG_20130510_183306.jpg')
