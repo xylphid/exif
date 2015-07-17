@@ -85,9 +85,7 @@ class ExifJPEG:
         print( '= Tags')
         print( '===========================')
         for key, tag in self._tags.items():
-            #tagdefault = ('Tag {}'.format(key),)
             print( tag._name.ljust(25, ' ') + ' : ' + repr(tag.value) )
-            #print( EXIF_TAGS.get(key, tagdefault)[0].ljust(25, ' ') + ' : ' + str( tag ) )
 
     def nextifd(self, f, tag_dict=EXIF_TAGS):
         """
@@ -103,7 +101,6 @@ class ExifJPEG:
             self.readtag(f, i+1, tag_dict)
 
         if 0x8769 in self._tags.keys():
-            #self._pointer = self._ifdstart + self._tags[0x8769]
             self._pointer = self._ifdstart + self._tags[0x8769].value
             del self._tags[0x8769]
             f.seek(self._pointer)
@@ -113,7 +110,6 @@ class ExifJPEG:
     def readtag(self, f, i, tag_dict, tag_prefix=None):
         # Read tag infos [id, format, len, datas]
         tagid = unpack_datas('H', f.read(2), self._endian)[0]
-        tagdefault = ('Tag {}'.format(tagid),)
         # Get tag name or set default 
         tagname = 'Tag {}'.format(tagid) if not tag_dict.get(tagid) else tag_dict.get(tagid)[0]
 
@@ -129,7 +125,6 @@ class ExifJPEG:
         # Read tag value and populate dictionnary
         tagdata = self.readtagvalue(f, tagformat, taglen )
         self._tags[tagid] = Tag(tagname, tagdata, tagformat)
-        #self._tags[tagid] = tagdata
         
         """
         logging.debug( 'Tag id : ' + str(tagid) )
@@ -137,23 +132,21 @@ class ExifJPEG:
         logging.debug( 'Tag length : ' + str(taglen) )
         logging.debug('Tagname : %s', tagname )
         """
-        #if EXIF_TAGS.get(tagid, tagdefault)[0] == 'NOrientation':
         if not 1:
-            print( '---------------------------')
-            print( '- Tag ' + str(i))
-            print( '---------------------------')
-            print( 'Tag id : ' + str(tagid) )
-            print( 'Tag id : ' + tag_dict.get(tagid, tagdefault)[0] )
-            print( 'Tag format : ' + str( tagformat ) )
-            print( 'Tag length : ' + str( taglen ) )
-        
-
-        if not 1:
-            print( 'Tag data : ' + str(tagdata) )
-            print( '---------------------------')
+            logging.debug( '---------------------------')
+            logging.debug( '- Tag ' + str(i))
+            logging.debug( '---------------------------')
+            logging.debug( 'Tag id : ' + str(tagid) )
+            logging.debug( 'Tag name : ' + str(tagname) )
+            logging.debug( 'Tag format : ' + str( tagformat ) )
+            logging.debug( 'Tag length : ' + str( taglen ) )
+            logging.debug( 'Tag data : ' + str(tagdata) )
+            logging.debug( '---------------------------')
 
         tagentry = tag_dict.get(tagid)
         if tagentry and len(tagentry) != 1:
+            # optional 2nd tag element is present
+            
             if callable(tagentry[1]):
                 self._tags[tagid].value = tagentry[1](tagdata)
             elif type(tagentry[1]) is tuple:
