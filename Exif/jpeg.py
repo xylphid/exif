@@ -121,18 +121,16 @@ class ExifJPEG:
             tagoffset = unpack_datas('I', f.read(4), self._endian)[0]
             f.seek(self._ifdstart + tagoffset)
 
+        datas = self.readtagvalue(f, tagformat, taglen )
 
-        # Read tag value and populate dictionnary
-        tagdata = self.readtagvalue(f, tagformat, taglen )
-        self._tags[tagid] = Tag(tagname, tagdata, tagformat)
-        
+        self._tags[tagid] = Tag(tagname, datas, tagformat)
         """
         logging.debug( 'Tag id : ' + str(tagid) )
         logging.debug( 'Tag format : ' + str(tagformat) )
         logging.debug( 'Tag length : ' + str(taglen) )
         logging.debug('Tagname : %s', tagname )
         """
-        if not 1:
+        if 1:
             logging.debug( '---------------------------')
             logging.debug( '- Tag ' + str(i))
             logging.debug( '---------------------------')
@@ -140,23 +138,23 @@ class ExifJPEG:
             logging.debug( 'Tag name : ' + str(tagname) )
             logging.debug( 'Tag format : ' + str( tagformat ) )
             logging.debug( 'Tag length : ' + str( taglen ) )
-            logging.debug( 'Tag data : ' + str(tagdata) )
+            logging.debug( 'Tag data : ' + str(datas) )
             logging.debug( '---------------------------')
 
         tagentry = tag_dict.get(tagid)
         if tagentry and len(tagentry) != 1:
             # optional 2nd tag element is present
-            
+
             if callable(tagentry[1]):
-                self._tags[tagid].value = tagentry[1](tagdata)
+                self._tags[tagid].value = tagentry[1](datas)
             elif type(tagentry[1]) is tuple:
                 # If tag entry is tuple, then read sub IFD
                 current_pointer = self._pointer
-                self._pointer = self._ifdstart + tagdata
+                self._pointer = self._ifdstart + datas
                 self.nextifd(f, tagentry[1][1])
                 self._pointer = current_pointer
             else:
-                self._tags[tagid].value = tagentry[1].get(tagdata)
+                self._tags[tagid].value = tagentry[1].get(datas)
 
         self._pointer += 12
         f.seek(self._pointer)
@@ -167,11 +165,16 @@ class ExifJPEG:
             # Read string value
             return self.readascii(f)
         elif format in (5, 10):
-            # Read ratio value
-            return Ratio(
-                    unpack_datas(FIELD_TYPES[format][3], f.read(4), self._endian)[0],
-                    unpack_datas(FIELD_TYPES[format][3], f.read(4), self._endian)[0]
-                )
+            datas = []
+            for next in range(length):
+                # Read ratio value
+                item = Ratio(
+                        unpack_datas(FIELD_TYPES[format][3], f.read(4), self._endian)[0],
+                        unpack_datas(FIELD_TYPES[format][3], f.read(4), self._endian)[0]
+                    )
+                datas.append( item)
+
+            return datas if len(datas) > 1 else datas[0]
         else:
             return unpack_datas(FIELD_TYPES[format][3], f.read( length * FIELD_TYPES[format][0] ), self._endian)[0]
 
