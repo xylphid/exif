@@ -27,4 +27,7 @@ class Tag:
             return len(self.value)
 
     def __str__(self):
-        return repr(self.value)
+        if (self.type == 1):
+            return repr(self.value.decode('utf-8'))
+        else:
+            return repr(self.value)

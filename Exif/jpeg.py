@@ -85,7 +85,7 @@ class ExifJPEG:
         print( '= Tags')
         print( '===========================')
         for key, tag in self._tags.items():
-            print( tag._name.ljust(25, ' ') + ' : ' + repr(tag.value) )
+            print( tag._name.ljust(25, ' ') + ' : ' + str(tag) )
 
     def nextifd(self, f, tag_dict=EXIF_TAGS):
         """
