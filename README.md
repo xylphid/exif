@@ -4,6 +4,7 @@ Xy-Exif is a fork of python exif-py library.
 
 ## Compatibility
 Xy-Exif is tested on the following Python version :
+
 * 3.3
 * 3.4
 
@@ -35,7 +36,7 @@ Auto process :
 Returned tags will be a dictionary mapping names of Exif tags to their values in the file named by path_name. You can process the tags as you wish. In particular, you can iterate through all the tags with:
 
     for tag in exif.tags.keys():
-        if tag not in ('JPEGThumbnail', 'TIFFThumbnail', 'Filename', 'EXIF MakerNote'):
+        if tag not in ('Thumbnail', 'Filename', 'MakerNote'):
             print "Key: %s, value %s" % (tag, exif.tags[tag])
 
 An if statement is used to avoid printing out a few of the tags that tend to be long or boring.
